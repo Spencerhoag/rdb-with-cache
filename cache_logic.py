@@ -25,13 +25,16 @@ def cache_plays_from_postgres():
         row_dict = dict(zip(columns, row))
 
         # Use GameID + Drive + qtr + ttime as key
-        game_id = row_dict.get("GameID", "unknown")
-        drive = row_dict.get("Drive", "unknown")
+        game_id = row_dict.get("gameid", "unknown")
+        drive = row_dict.get("drive", "unknown")
         qtr = row_dict.get("qtr", "unknown")
         ttime = row_dict.get("ttime", "unknown")
 
         redis_key = f"play:{game_id}:{drive}:{qtr}:{ttime}"
-        r.hset(redis_key, mapping=row_dict)
+        #print(f"Caching play with key: {redis_key}")
+        # Replace None with 'NA' or any default string
+        safe_row_dict = {k: (str(v) if v is not None else "NA") for k, v in row_dict.items()}
+        r.hset(redis_key, mapping=safe_row_dict)
     
     print("Cached plays from PostgreSQL to Redis.")
 
@@ -46,6 +49,7 @@ def get_play_from_postgres(game_id, drive, qtr, ttime):
 
 def get_play_with_cache(game_id, drive, qtr, ttime):
     redis_key = f"play:{game_id}:{drive}:{qtr}:{ttime}"
+    #print(f"Checking cache for key: {redis_key}")
     play = r.hgetall(redis_key)
 
     if play:
@@ -76,9 +80,9 @@ if __name__ == "__main__":
     cache_plays_from_postgres()
 
     start = time.perf_counter()
-    get_play_from_postgres(5000)
+    get_play_from_postgres("2009091000", "3", "1", "09:43")
     print("Postgres time:", time.perf_counter() - start)
 
     start = time.perf_counter()
-    get_play_with_cache(5000)
+    get_play_with_cache("2009091000", "3", "1", "09:43")
     print("Redis/Cache time:", time.perf_counter() - start)
